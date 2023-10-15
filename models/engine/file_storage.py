@@ -50,9 +50,3 @@ class FileStorage:
                     self.new(eval(cls_name)(**o))
         except FileNotFoundError:
             return
-
-    def delete(self, key):
-        """deletes an instance given a key in the format <Model.instance_id>"""
-        if key in self.__objects:
-            del self.__objects[key]
-            self.save()

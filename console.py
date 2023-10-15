@@ -21,6 +21,7 @@ class HBNBCommand(cmd.Cmd):
     """
 
     prompt = "(hbnb) "
+
     __classes = {
         "BaseModel",
         "User",
@@ -31,14 +32,12 @@ class HBNBCommand(cmd.Cmd):
         "Review"
     }
 
-    patterns = {
-        'all': r'^([A-Za-z]+)\.all\(\)$',
-        'count': r'^([A-Za-z]+)\.count\(\)$',
-        'show': r'^([A-Za-z]+)\.show\((["\'\w-]+)\)$',
-        'destroy': r'([A-Za-z]+)\.destroy\((["\'\w-]+)\)',
-        'update': r'^([A-Za-z]+)\.update\((["\'\w-]+), (["\'\w_]+), '
-                  r'([" \'\@\$\w_\.-]+)\)$',
-        'update_from_dict': r'^([A-Za-z]+)\.update\((["\'\w-]+), (\{.*?\})\)'
+    __commands = {
+        'all': r'^\.all(\(\))$',
+        'count': r'^\.count(\(\))$',
+        'show': r'^\.show(\(.*?\))$',
+        'destroy': r'^\.destroy(\(.*?\))$',
+        'update': r'^\.update(\(.*?\))$',
     }
 
     def emptyline(self):
@@ -53,15 +52,23 @@ class HBNBCommand(cmd.Cmd):
         """EOF signal to exit the program."""
         return True
 
-    def split_arg(self, arg):
+    def _split(self, arg):
         """Split the line in to substrings based on double quotes and spaces"""
-        pattern = r'(?:"[^"]+"|\S+)'
-        return re.findall(pattern, arg)
+        pattern = r'("[^"]+"|\{[^}]*\}|\S+)'
+        res = re.findall(pattern, arg)
+        for i in range(len(res)):
+            try:
+                v = eval(res[i])
+                if type(v) in (int, str, float, dict):
+                    res[i] = v
+            except (NameError, SyntaxError, TypeError):
+                continue
+        return res
 
     def do_create(self, arg):
         """Creates an instance of the passed class if it exists,
         saves it and prints its id"""
-        arg = self.split_arg(arg)
+        arg = self._split(arg)
         if not arg:
             return print("** class name missing **")
         klas = arg[0]
@@ -73,7 +80,7 @@ class HBNBCommand(cmd.Cmd):
 
     def do_show(self, arg):
         """prints the string representation of an instance"""
-        arg = self.split_arg(arg)
+        arg = self._split(arg)
         if not arg:
             return print("** class name missing **")
         if arg[0] not in self.__classes:
@@ -88,7 +95,7 @@ class HBNBCommand(cmd.Cmd):
 
     def do_destroy(self, arg):
         """deletes an instance given a classname and instance id"""
-        arg = self.split_arg(arg)
+        arg = self._split(arg)
         if not arg:
             return print("** class name missing **")
         if arg[0] not in self.__classes:
@@ -99,13 +106,16 @@ class HBNBCommand(cmd.Cmd):
         instance = storage.all().get(key)
         if not instance:
             return print("** no instance found **")
-        storage.delete(key)
+        del instance
+        del storage.all()[key]
+        storage.save()
 
     def do_all(self, arg):
         """prints all instances of a given model"""
-        arg = self.split_arg(arg)
+        arg = self._split(arg)
         if not arg:
-            return print("** class name missing **")
+            return print([str(instance) for k, instance in
+                          storage.all().items()])
         klas = arg[0]
         if klas not in self.__classes:
             return print("** class doesn't exist **")
@@ -113,9 +123,23 @@ class HBNBCommand(cmd.Cmd):
                      k.startswith("{}.".format(klas))]
         print(instances)
 
+    def do_count(self, arg):
+        """Count instances based on className"""
+        args = self._split(arg)
+        klas = args[0]
+        match = list(filter(lambda k: k.startswith('{}.'.format(klas)),
+                            storage.all().keys()))
+        print(len(match))
+
+    def _eval(self, value):
+        """Adds double quotes to a string"""
+        if type(value) is str:
+            return '"{}"'.format(value)
+        return str(value)
+
     def do_update(self, arg):
         """updates a model instance"""
-        arg = self.split_arg(arg)
+        arg = self._split(arg)
         if not arg:
             return print("** class name missing **")
         if arg[0] not in self.__classes:
@@ -128,69 +152,46 @@ class HBNBCommand(cmd.Cmd):
             return print("** no instance found **")
         if len(arg) < 3:
             return print("** attribute name missing **")
-        if len(arg) < 4:
+        kw = {}
+        if type(arg[2]) is dict:
+            kw = arg[2]
+        if not kw and len(arg) < 4:
             return print("** value missing **")
-        try:
-            value = eval(arg[3])
-        except (NameError, SyntaxError):
-            value = arg[3]
-        setattr(instance, arg[2], value)
+        if not kw:
+            kw = {arg[2]: arg[3]}
+        for k, v in kw.items():
+            setattr(instance, k, v)
         instance.save()
 
-    def custom_eval(self, arg):
-        """Processes a value to be parsed to do_update"""
-        arg = str(arg)
-        if arg.replace('.', '', 1).isdigit():
-            return str(arg)
-        return '"{}"'.format(arg)
+    def parse_line(self, line, klas):
+        """parse the input string"""
+
+        command = line[len(klas):]
+        for c in self.__commands.keys():
+            match = re.match(self.__commands[c], command)
+            if match:
+                args = eval(match.group(1))
+                if not args:
+                    return "{} {}".format(c, klas)
+                if type(args) is not tuple:
+                    args = [args]
+                args = " ".join([self._eval(arg) for arg in args])
+                return "{} {} {}".format(c, klas, args)
+        return line
 
     def onecmd(self, line):
         """Override to handle advanced commands"""
-        # Model.all
-        match = re.search(self.patterns['all'], line)
+        if line in ['all', '.all()']:
+            return self.do_all("")
+        pattern = r"([a-zA-Z]*)\.(all|count|show|destroy|update)"
+        match = re.search(pattern, line)
         if match:
             klas = match.group(1)
-            return self.do_all(klas)
-        # Mode.count
-        match = re.search(self.patterns['count'], line)
-        if match:
-            klas = match.group(1)
-            if klas in self.__classes:
-                return print(len([str(instance) for k, instance in
-                                  storage.all().items() if
-                                  k.startswith("{}.".format(klas))]))
-        # Model.show
-        match = re.search(self.patterns['show'], line)
-        if match:
-            klas = match.group(1)
-            uid = eval(match.group(2))
-            return self.do_show("{} {}".format(klas, uid))
-        # Model.destroy
-        match = re.search(self.patterns['destroy'], line)
-        if match:
-            klas = match.group(1)
-            uid = eval(match.group(2))
-            return self.do_destroy("{} {}".format(klas, uid))
-        match = re.search(self.patterns['update'], line)
-        # Model.update
-        if match:
-            klas = match.group(1)
-            uid = eval(match.group(2))
-            attribute_name = eval(match.group(3))
-            value = match.group(4)
-            command = "{} {} {} {}".format(klas, uid,
-                                           attribute_name, value)
-            return self.do_update(command)
-        # Model.update with dict
-        match = re.search(self.patterns['update_from_dict'], line)
-        if match:
-            klas = match.group(1)
-            uid = eval(match.group(2))
-            kw = eval(match.group(3))
-            for k, v in kw.items():
-                self.do_update("{} {} {} {}".format(klas, uid, k,
-                                                    self.custom_eval(v)))
-            return
+            if not klas:
+                return print("** class name missing **")
+            elif klas not in self.__classes:
+                return print("** class doesn't exist **")
+            line = self.parse_line(line, klas)
         return super(HBNBCommand, self).onecmd(line)
 
 
