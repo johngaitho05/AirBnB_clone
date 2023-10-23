@@ -17,4 +17,7 @@ body {
 }
 
 @media screen and (max-width: 1000px){
+    .places {
+        padding: 0 20px;
+    }
 }
