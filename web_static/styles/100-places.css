@@ -72,3 +72,51 @@ article .title {
 .description {
     line-height: 1.4;
 }
+
+article > .amenities, article > .reviews {
+    margin-top: 40px;
+}
+article > .amenities h2, article > .reviews h2 {
+    font-size: 16px;
+    border-bottom: 1px solid #DDDDDD;
+    padding-bottom: 5px;
+}
+article > .amenities ul, article > .reviews ul {
+    list-style: none;
+    margin-left: 0;
+    padding-left: 0;
+    line-height: 1.8;
+}
+
+article > .amenities .icon {
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+}
+article .amenities .icon {
+    background-size: cover;
+    background-repeat: no-repeat;
+    vertical-align: middle;
+    margin-right: .3rem;
+}
+article .amenities .icon.tv {
+    background-image: url(../images/icons/tv.png);
+}
+article .amenities .icon.wifi {
+    background-image: url(../images/icons/wifi.png);
+}
+article .amenities .icon.pets {
+    background-image: url(../images/icons/pets.png);
+}
+
+article > .reviews h3 {
+    margin: 0;
+    font-size: 14px;
+}
+article > .reviews p {
+    margin: 0;
+    font-size: 12px;
+}
+article > .reviews  li {
+    margin-bottom: 10px;
+}
