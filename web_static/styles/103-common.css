@@ -1,0 +1,37 @@
+body {
+    margin: 0;
+    padding: 0;
+    color: #484848;
+    font-size: 14px;
+    font-family: Circular,"Helvetica Neue",Helvetica,Arial,sans-serif;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh
+}
+.skip-to-main-content-link {
+  position: absolute;
+  left: -9999px;
+  z-index: 999;
+  padding: 1em;
+  background-color: black;
+  color: white;
+  opacity: 0;
+}
+.skip-to-main-content-link:focus {
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 1;
+}
+.container {
+    flex: 1;
+    width: 100%;
+    max-width: 1000px;
+    margin: 30px auto;
+}
+
+@media screen and (max-width: 1000px){
+    .places {
+        padding: 0 20px;
+    }
+}
